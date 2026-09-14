@@ -65,8 +65,7 @@ assert_opens_with '--placement popup' "$args"
 # A popup gets no workspace of its own, so the action has to hand its own down.
 assert_opens_with '--env HERDR_WORKSPACE_ID=w1' "$args"
 refute_opens_with '--direction' "$args"
-refute_opens_with '--width' "$args"
-refute_opens_with '--height' "$args"
+assert_opens_with '--width 70% --height 40%' "$args"
 
 printf 'picker_placement = "popup"\npopup_width = "80%%"\npopup_height = 24\n' \
   > "$config_dir/config.toml"
@@ -85,7 +84,7 @@ assert_opens_with '--cwd /tmp/pane' "$args"
 printf 'picker_placement = "popup"\npopup_width = "wide"\n' > "$config_dir/config.toml"
 args=$(open_args picker-default)
 assert_opens_with '--placement popup' "$args"
-refute_opens_with '--width' "$args"      # malformed → herdr's default popup size
+assert_opens_with '--width 70% --height 40%' "$args" # malformed → plugin defaults
 
 # Actions invoked from a pane rather than a workspace carry no workspace_cwd.
 context='{"workspace_cwd":null,"focused_pane_cwd":"/tmp/pane"}'

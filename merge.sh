@@ -69,12 +69,11 @@ if [[ -z $cands ]]; then
   printf '\033[33m%s\033[0m\n' "No merge target worktrees (only the current worktree exists)."; sleep 2; exit 0
 fi
 
-# Spell out the exact wt invocation in the header: which flags are in play is the
-# difference between this action and its no-squash variant, and between one user's
-# merge_flags and another's.
+# Keep the active flags in the hint: they distinguish this action from its
+# no-squash variant and reflect the user's configured merge_flags.
 target_branch=$(printf '%s\n' "$cands" \
   | worktrunk_pick_branch "merge $source_branch into ❯ " \
-      "↵ to merge $source_branch into the selected branch${merge_flags[*]:+ ${merge_flags[*]}} · esc to cancel")
+      "↵ merge into selected · esc close${merge_flags[*]:+ · flags: ${merge_flags[*]}}")
 [[ -z $target_branch ]] && exit 0      # esc / no selection → cancel
 
 # Enter the target before removing the source so this action never leaves its

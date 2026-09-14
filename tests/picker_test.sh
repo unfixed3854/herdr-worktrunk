@@ -21,6 +21,10 @@ git -C "$work_dir/repo" branch silas/foo-bar
 # real picker would produce for the scripted keypress.
 cat > "$stub_dir/fzf" <<'EOF'
 #!/usr/bin/env bash
+if [[ ${1:-} == --help ]]; then
+  printf '%s\n' "$FZF_STUB_HELP"
+  exit 0
+fi
 cat > "$STUB_DIR/fzf.stdin"
 printf '%s\n' "$@" > "$STUB_DIR/fzf.args"
 printf '%s' "$FZF_STUB_OUT"
@@ -74,6 +78,7 @@ wt_list='[{"branch":"silas/foo-bar","path":"/tmp/a","kind":"worktree"},
 # to are pinned so the runner's own shell can't leak into the tab-mode cases.
 run_picker() {
   local out=$1 exit_code=$2
+  local fzf_help=${FZF_STUB_HELP-$'--padding=PADDING\n--gutter=CHAR\n--highlight-line\ninline[-right]\n--footer=STR'}
   shift 2
   rm -f "$stub_dir/wt.args" "$stub_dir/herdr.log" "$stub_dir/tab_create.args" "$stub_dir/pane_run.args"
   (
@@ -83,6 +88,7 @@ run_picker() {
     REPO_CWD="$work_dir/repo" \
     FZF_STUB_OUT="$out" \
     FZF_STUB_EXIT="$exit_code" \
+    FZF_STUB_HELP="$fzf_help" \
     WT_STUB_LIST="$wt_list" \
     HERDR_STUB_SHELL="${HERDR_STUB_SHELL:-zsh}" \
     SHELL="${PICKER_SHELL:-/bin/zsh}" \
@@ -114,6 +120,14 @@ assert_contains() {
   fi
 }
 
+refute_contains() {
+  local needle=$1 haystack=$2 what=${3:-output}
+  if [[ $haystack == *"$needle"* ]]; then
+    printf 'expected no %q in %s %q\n' "$needle" "$what" "$haystack" >&2
+    exit 1
+  fi
+}
+
 # Plain ↵ on a match switches to the match, not to the query.
 run_picker $'silas/foo\nsilas/foo-bar' 0
 assert_eq 'switch silas/foo-bar --no-cd --format=json ' "$(wt_args)" 'wt argv'
@@ -140,8 +154,39 @@ assert_eq 'switch silas/foo-bar --no-cd --format=json ' "$(wt_args)" 'wt argv'
 run_picker '' 130
 assert_eq '' "$(wt_args)" 'wt argv'
 
-# The binding the header advertises is the one fzf is asked for.
-assert_contains '--bind=alt-enter:print-query' "$(cat "$stub_dir/fzf.args")" 'fzf argv'
+# The default split presentation keeps its concise controls in a header; only a
+# popup moves them to the bottom. The advertised binding is still wired up.
+fzf_args=$(cat "$stub_dir/fzf.args")
+assert_contains '--bind=alt-enter:print-query' "$fzf_args" 'fzf argv'
+assert_contains '--header=↵ select · alt-↵ use typed name · esc close' "$fzf_args" 'fzf argv'
+refute_contains '--footer=' "$fzf_args" 'fzf argv'
+
+# Popup mode uses compact, theme-neutral chrome and puts its controls in the
+# footer when the installed fzf supports one.
+printf 'picker_placement = "popup"\n' > "$config_dir/config.toml"
+run_picker '' 130
+fzf_args=$(cat "$stub_dir/fzf.args")
+assert_contains '--padding=1,2' "$fzf_args" 'fzf argv'
+assert_contains '--gutter= ' "$fzf_args" 'fzf argv'
+assert_contains '--pointer=›' "$fzf_args" 'fzf argv'
+assert_contains '--highlight-line' "$fzf_args" 'fzf argv'
+assert_contains '--info=inline-right' "$fzf_args" 'fzf argv'
+assert_contains '--footer=↵ select · alt-↵ use typed name · esc close' "$fzf_args" 'fzf argv'
+assert_contains '--footer-border=none' "$fzf_args" 'fzf argv'
+refute_contains '--header=' "$fzf_args" 'fzf argv'
+
+# Older fzf releases get the same concise controls in a header instead of
+# failing on an unsupported --footer option.
+FZF_STUB_HELP='' run_picker '' 130
+fzf_args=$(cat "$stub_dir/fzf.args")
+assert_contains '--header=↵ select · alt-↵ use typed name · esc close' "$fzf_args" 'fzf argv'
+refute_contains '--footer=' "$fzf_args" 'fzf argv'
+refute_contains '--padding=' "$fzf_args" 'fzf argv'
+refute_contains '--gutter=' "$fzf_args" 'fzf argv'
+refute_contains '--highlight-line' "$fzf_args" 'fzf argv'
+refute_contains '--info=inline-right' "$fzf_args" 'fzf argv'
+
+: > "$config_dir/config.toml"
 
 # Refs are offered before the slow `wt list` source and deduped without sorting, so
 # the picker fills in before worktrunk has finished stat-ing every checkout.

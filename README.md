@@ -150,8 +150,9 @@ Supported values:
 - `picker_placement = "popup"` — a floating terminal centered over the tab,
   leaving the tiled layout alone. Needs herdr ≥ 0.7.4.
 
-A popup is half the window by default. Size it with `popup_width` and
-`popup_height`, either as terminal cells or as a percentage of the window:
+A popup defaults to 70% of the window's width and 40% of its height. Override
+either dimension with `popup_width` and `popup_height`, using terminal cells or
+a percentage of the window:
 
 ```toml
 picker_placement = "popup"
@@ -159,8 +160,10 @@ popup_width = "70%"
 popup_height = 24
 ```
 
-In a split the picker draws its own rounded border and inset margin, which a
-popup does not need, so the list fills the popup frame herdr already draws.
+In a split the picker draws its own rounded border and inset margin. A popup
+instead uses herdr's frame with a small padded interior, a highlighted selection,
+and its key hints at the bottom. Older fzf versions that lack footer support show
+the same concise hints at the top.
 
 ## Requirements
 

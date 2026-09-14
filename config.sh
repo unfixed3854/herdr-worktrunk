@@ -88,10 +88,30 @@ worktrunk_picker_placement() {
 # are stated outright so a border in the user's FZF_DEFAULT_OPTS can't double up
 # on the frame herdr draws.
 # shellcheck disable=SC2034  # read by the scripts that source this file
+worktrunk_fzf_help() {
+  if [[ -z ${WORKTRUNK_FZF_HELP+x} ]]; then
+    WORKTRUNK_FZF_HELP=$(fzf --help </dev/null 2>&1 || true)
+  fi
+}
+
+# shellcheck disable=SC2034  # read by the scripts that source this file
 worktrunk_fzf_layout() {
   case $(worktrunk_picker_placement) in
     popup)
-      WORKTRUNK_FZF_LAYOUT=(--border=none --margin=0)
+      WORKTRUNK_FZF_LAYOUT=(
+        --border=none
+        --margin=0
+      )
+      worktrunk_fzf_help
+      [[ $WORKTRUNK_FZF_HELP == *'--padding=PADDING'* ]] \
+        && WORKTRUNK_FZF_LAYOUT+=(--padding=1,2)
+      [[ $WORKTRUNK_FZF_HELP == *'--gutter=CHAR'* ]] \
+        && WORKTRUNK_FZF_LAYOUT+=(--gutter=' ')
+      WORKTRUNK_FZF_LAYOUT+=(--pointer=›)
+      [[ $WORKTRUNK_FZF_HELP == *'--highlight-line'* ]] \
+        && WORKTRUNK_FZF_LAYOUT+=(--highlight-line)
+      [[ $WORKTRUNK_FZF_HELP == *'inline[-right]'* ]] \
+        && WORKTRUNK_FZF_LAYOUT+=(--info=inline-right)
       ;;
     *)
       WORKTRUNK_FZF_LAYOUT=(--border=rounded '--margin=20%,30%')
@@ -99,10 +119,25 @@ worktrunk_fzf_layout() {
   esac
 }
 
+# Put popup controls at the bottom on fzf versions that support a footer. Split
+# panes and older fzf versions receive the same text as a compact header.
+# shellcheck disable=SC2034  # read by the scripts that source this file
+worktrunk_fzf_hint() {
+  local hint=$1
+
+  worktrunk_fzf_help
+  if [[ $(worktrunk_picker_placement) == popup \
+    && $WORKTRUNK_FZF_HELP == *'--footer=STR'* ]]; then
+    WORKTRUNK_FZF_HINT=(--footer="$hint" --footer-border=none)
+  else
+    WORKTRUNK_FZF_HINT=(--header="$hint")
+  fi
+}
+
 # Print the configured popup_width/popup_height, or nothing when unset. herdr
 # takes a popup dimension as terminal cells (24) or a percentage of the window
-# ("80%"), and falls back to a half-size popup when one is omitted. Drop a
-# malformed value rather than passing it on and failing the open.
+# ("80%"). Drop a malformed value rather than passing it on and failing the
+# open; open.sh substitutes the plugin's compact default.
 worktrunk_popup_dimension() {
   local key=$1 value
 

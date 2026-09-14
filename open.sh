@@ -35,8 +35,7 @@ if [[ $(worktrunk_picker_placement) == popup ]]; then
 
   width=$(worktrunk_popup_dimension popup_width)
   height=$(worktrunk_popup_dimension popup_height)
-  [[ -n $width ]] && args+=(--width "$width")
-  [[ -n $height ]] && args+=(--height "$height")
+  args+=(--width "${width:-70%}" --height "${height:-40%}")
 
   # A popup is session-modal and belongs to no pane, so herdr injects none of
   # HERDR_WORKSPACE_ID/HERDR_TAB_ID/HERDR_PANE_ID into it. The picker opens the

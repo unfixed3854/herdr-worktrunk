@@ -86,8 +86,11 @@ assert_fzf_layout() {
 printf 'picker_placement = "split"\n' > "$config_dir/config.toml"
 assert_fzf_layout '--border=rounded --margin=20%,30%'
 
+# Pin a modern fzf feature catalog so this assertion is independent of the fzf
+# version installed on the test runner. picker_test.sh covers the fallback.
+WORKTRUNK_FZF_HELP=$'--padding=PADDING\n--gutter=CHAR\n--highlight-line\ninline[-right]\n--footer=STR'
 printf 'picker_placement = "popup"\n' > "$config_dir/config.toml"
-assert_fzf_layout '--border=none --margin=0'
+assert_fzf_layout '--border=none --margin=0 --padding=1,2 --gutter=  --pointer=› --highlight-line --info=inline-right'
 
 assert_dimension() {
   local key=$1 expected=$2 actual

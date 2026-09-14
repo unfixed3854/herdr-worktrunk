@@ -26,7 +26,7 @@ fi
 
 name=$(printf '%s\n' "$cands" \
   | worktrunk_pick_branch 'remove worktree ❯ ' \
-      '↵ to remove (worktrunk will ask to confirm) · esc to cancel')
+      '↵ choose · confirmation follows · esc close')
 [[ -z $name ]] && exit 0      # esc / no selection → cancel
 
 # Path and native herdr workspace (if open) of the worktree we're about to remove.

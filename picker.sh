@@ -44,6 +44,7 @@ if [[ ${1:-} == --show-with-remotes || $(worktrunk_show_remote_branches) == true
 fi
 
 worktrunk_fzf_layout
+worktrunk_fzf_hint '↵ select · alt-↵ use typed name · esc close'
 
 # fzf over existing worktree branches; --print-query returns a typed-but-unmatched
 # name so we can create it, and alt-↵ (print-query) forces the typed name even when
@@ -65,7 +66,7 @@ if command -v fzf >/dev/null; then
       | fzf --print-query --reverse --info=inline "${WORKTRUNK_FZF_LAYOUT[@]}" \
             --bind=alt-enter:print-query \
             --prompt='worktree ❯ ' \
-            --header="↵ on a match → switch · type a new name + ↵ → create from ${create_base_label} · alt-↵ → force typed name · esc → cancel"
+            "${WORKTRUNK_FZF_HINT[@]}"
   )
   ret=$?
   [[ $ret -gt 1 ]] && exit 0      # 130 = esc/abort → cancel (0 = picked, 1 = typed-new)
