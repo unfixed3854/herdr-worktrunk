@@ -31,6 +31,14 @@ worktrunk_worktree_branches() {
   jq -r 'select(.kind == "worktree" and .branch != null and .is_main != true) | .branch'
 }
 
+# Print one branch per line for every worktree that can receive a merge from
+# SOURCE_BRANCH. The source itself is omitted; the main worktree is deliberately
+# included because it is a valid target.
+worktrunk_merge_target_branches() {
+  jq -r --arg source "$1" \
+    'select(.kind == "worktree" and .branch != null and .branch != $source) | .branch'
+}
+
 # Print the path of the worktree checked out at BRANCH, reading items on stdin.
 worktrunk_worktree_path() {
   jq -r --arg b "$1" 'select(.kind == "worktree" and .branch == $b) | .path'

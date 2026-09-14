@@ -76,6 +76,12 @@ assert_opens_with '--width 80% --height 24' "$args"
 args=$(open_args picker-with-remotes)
 assert_opens_with '--entrypoint picker-with-remotes' "$args"
 
+# Merge must originate from the focused worktree. In tab mode, that can differ
+# from the workspace root used by the other actions.
+args=$(open_args merger)
+assert_opens_with '--entrypoint merger' "$args"
+assert_opens_with '--cwd /tmp/pane' "$args"
+
 printf 'picker_placement = "popup"\npopup_width = "wide"\n' > "$config_dir/config.toml"
 args=$(open_args picker-default)
 assert_opens_with '--placement popup' "$args"

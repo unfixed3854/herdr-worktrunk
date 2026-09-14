@@ -12,7 +12,16 @@ plugin_root=${HERDR_PLUGIN_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && 
 # shellcheck source=./config.sh
 source "$plugin_root/config.sh"
 
-cwd=$(jq -r '.workspace_cwd // .focused_pane_cwd' <<<"$HERDR_PLUGIN_CONTEXT_JSON")
+# Merging is directional: its source is the worktree under the focused pane.
+# Other actions retain the workspace root as their operating context.
+case $entrypoint in
+  merger|merger-no-squash)
+    cwd=$(jq -r '.focused_pane_cwd // .workspace_cwd' <<<"$HERDR_PLUGIN_CONTEXT_JSON")
+    ;;
+  *)
+    cwd=$(jq -r '.workspace_cwd // .focused_pane_cwd' <<<"$HERDR_PLUGIN_CONTEXT_JSON")
+    ;;
+esac
 herdr=${HERDR_BIN_PATH:-herdr}
 
 args=(plugin pane open

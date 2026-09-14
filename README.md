@@ -49,9 +49,11 @@ opens as a tab or a native worktree workspace according to plugin configuration.
   removes it. The native workspace or any legacy tab panes associated with the
   deleted worktree are closed automatically.
 
-- **Worktree: merge into the target branch** — the same picker over removable
-  worktrees, then `wt merge` on the one you pick, then removal. The native
-  workspace or legacy tab panes are closed once the worktree is gone.
+- **Worktree: merge into the target branch** — merges the worktree open in the
+  current pane. The picker shows every other checked-out branch, including the
+  main branch; select the branch that receives the merge. The source worktree is
+  then removed, and its native workspace or legacy tab panes are closed. The
+  primary worktree cannot be used as the source because it is never removable.
 
 - **Worktree: merge into the target branch, keeping every commit** — the same
   merge with `--no-squash`. See [Merge flags](#merge-flags) for the rest.

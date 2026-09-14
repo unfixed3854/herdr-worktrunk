@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Merger for the worktrunk herdr plugin — fzf over mergeable worktrees, then
-# `wt merge` into the target branch and `wt remove`. Plain bash, shell-agnostic: it
-# calls the `wt` binary directly, so it needs no shell-function/rc integration.
+# Merger for the worktrunk herdr plugin — merge the currently open worktree into
+# a target selected with fzf, then remove the source worktree. Plain bash,
+# shell-agnostic: it calls the `wt` binary directly, so it needs no
+# shell-function/rc integration.
 
 if ! command -v fzf >/dev/null; then
   printf '\033[31m%s\033[0m\n' "fzf not found on PATH"; sleep 2; exit 1
@@ -44,41 +45,62 @@ worktrunk_fzf_layout
 
 wtitems=$(worktrunk_worktree_items) || exit 1
 
-cands=$(printf '%s\n' "$wtitems" | worktrunk_worktree_branches)
+source_branch=$(git branch --show-current)
+if [[ -z $source_branch ]]; then
+  printf '\033[31m%s\033[0m\n' "cannot merge a detached worktree"; sleep 2; exit 1
+fi
+
+# Resolve the source while it still exists: after a successful merge the target
+# context removes it, then its native workspace (if any) can be closed.
+source_path=$(printf '%s\n' "$wtitems" | worktrunk_worktree_path "$source_branch")
+if [[ -z $source_path ]]; then
+  printf '\033[31m%s\033[0m\n' "current branch has no worktree: $source_branch"; sleep 2; exit 1
+fi
+
+source_is_main=$(printf '%s\n' "$wtitems" \
+  | jq -r --arg branch "$source_branch" \
+      'select(.kind == "worktree" and .branch == $branch) | .is_main')
+if [[ $source_is_main == true ]]; then
+  printf '\033[33m%s\033[0m\n' "cannot merge the primary worktree into another branch"; sleep 2; exit 1
+fi
+
+cands=$(printf '%s\n' "$wtitems" | worktrunk_merge_target_branches "$source_branch")
 if [[ -z $cands ]]; then
-  printf '\033[33m%s\033[0m\n' "No mergeable worktrees (only the main worktree exists)."; sleep 2; exit 0
+  printf '\033[33m%s\033[0m\n' "No merge target worktrees (only the current worktree exists)."; sleep 2; exit 0
 fi
 
 # Spell out the exact wt invocation in the header: which flags are in play is the
 # difference between this action and its no-squash variant, and between one user's
 # merge_flags and another's.
-name=$(printf '%s\n' "$cands" \
-  | worktrunk_pick_branch 'merge worktree ❯ ' \
-      "↵ to run wt merge${merge_flags[*]:+ ${merge_flags[*]}} and remove the worktree · esc to cancel")
-[[ -z $name ]] && exit 0      # esc / no selection → cancel
+target_branch=$(printf '%s\n' "$cands" \
+  | worktrunk_pick_branch "merge $source_branch into ❯ " \
+      "↵ to merge $source_branch into the selected branch${merge_flags[*]:+ ${merge_flags[*]}} · esc to cancel")
+[[ -z $target_branch ]] && exit 0      # esc / no selection → cancel
 
-# Path and native herdr workspace (if open) of the worktree we're about to merge.
-# Both have to be resolved before the removal below destroys them.
-wtpath=$(printf '%s\n' "$wtitems" | worktrunk_worktree_path "$name")
-wsid=$(worktrunk_open_workspace_id "$wtpath")
+# Enter the target before removing the source so this action never leaves its
+# shell process in a deleted working directory.
+target_path=$(printf '%s\n' "$wtitems" | worktrunk_worktree_path "$target_branch")
+if [[ -z $target_path ]]; then
+  printf '\033[31m%s\033[0m\n' "selected target has no worktree: $target_branch"; sleep 2; exit 1
+fi
+wsid=$(worktrunk_open_workspace_id "$source_path")
 
-# -C runs the merge as if from the picked worktree, so the pane never has to be in
-# it. --no-remove because wt merge's own removal runs in the background, which would
+# --no-remove because wt merge's own removal runs in the background, which would
 # race the workspace close below; the foreground `wt remove` further down does it.
 # wt merge stages, commits, squashes and rebases per its flags, runs pre-commit and
 # pre-merge hooks, and stops on conflicts — so run it interactively and let
 # worktrunk gate all of that.
-if ! wt merge --no-remove -C "$wtpath" "${merge_flags[@]}"; then
+if ! wt merge --no-remove "$target_branch" "${merge_flags[@]}"; then
   printf '\n\033[31m%s\033[0m press any key to close' "wt merge failed (see above)."; read -n1
   exit 0
 fi
 
 # The branch is merged now, so wt remove deletes it without -D. --foreground blocks
 # until the worktree is really gone, so closing its workspace can't outrun it.
-if ! wt remove --foreground "$name"; then
+if ! cd "$target_path" || ! wt remove --foreground "$source_branch"; then
   printf '\n\033[31m%s\033[0m press any key to close' \
     "merged, but wt remove failed (see above)."; read -n1
   exit 0
 fi
 
-worktrunk_close_worktree_ui "$wsid" "$wtpath"
+worktrunk_close_worktree_ui "$wsid" "$source_path"
